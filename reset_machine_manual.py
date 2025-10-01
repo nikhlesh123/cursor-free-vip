@@ -53,7 +53,7 @@ def get_user_documents_path():
 def get_cursor_paths(translator=None) -> Tuple[str, str]:
     """ Get Cursor related paths"""
     system = platform.system()
-    
+    print("yor are here") 
     # Read config file
     config = configparser.ConfigParser()
     config_dir = os.path.join(get_user_documents_path(), ".cursor-free-vip")

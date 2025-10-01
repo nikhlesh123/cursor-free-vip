@@ -50,7 +50,6 @@ def get_user_documents_path():
              return os.path.join("/home", sudo_user, "Documents")
          return os.path.join(os.path.expanduser("~"), "Documents")
      
-
 def get_cursor_paths(translator=None) -> Tuple[str, str]:
     """ Get Cursor related paths"""
     system = platform.system()
@@ -67,17 +66,18 @@ def get_cursor_paths(translator=None) -> Tuple[str, str]:
     # Default paths for different systems
     default_paths = {
         "Darwin": "/Applications/Cursor.app/Contents/Resources/app",
-        "Windows": os.path.join(os.getenv("LOCALAPPDATA", ""), "Programs", "Cursor", "resources", "app"),
+        "Windows": [
+            os.path.join(os.getenv("LOCALAPPDATA", ""), "Programs", "Cursor", "resources", "app"),
+            r"C:\Program Files\Cursor\resources\app",
+            r"C:\Program Files (x86)\Cursor\resources\app"
+        ],
         "Linux": ["/opt/Cursor/resources/app", "/usr/share/cursor/resources/app", os.path.expanduser("~/.local/share/cursor/resources/app"), "/usr/lib/cursor/app/"]
     }
     
     if system == "Linux":
         # Look for extracted AppImage with correct usr structure
         extracted_usr_paths = glob.glob(os.path.expanduser("~/squashfs-root/usr/share/cursor/resources/app"))
-        # Also check current directory for extraction without home path prefix
         current_dir_paths = glob.glob("squashfs-root/usr/share/cursor/resources/app")
-        
-        # Add any found paths to the Linux paths list
         default_paths["Linux"].extend(extracted_usr_paths)
         default_paths["Linux"].extend(current_dir_paths)
         
@@ -89,7 +89,6 @@ def get_cursor_paths(translator=None) -> Tuple[str, str]:
             else:
                 print(f"{Fore.RED}{EMOJI['ERROR']} {path} (not found){Style.RESET_ALL}")
     
-    
     # If config doesn't exist, create it with default paths
     if not os.path.exists(config_file):
         for section in ['MacPaths', 'WindowsPaths', 'LinuxPaths']:
@@ -99,7 +98,17 @@ def get_cursor_paths(translator=None) -> Tuple[str, str]:
         if system == "Darwin":
             config.set('MacPaths', 'cursor_path', default_paths["Darwin"])
         elif system == "Windows":
-            config.set('WindowsPaths', 'cursor_path', default_paths["Windows"])
+            # Choose the first existing path
+            for path in default_paths["Windows"]:
+                if os.path.exists(path):
+                    config.set('WindowsPaths', 'cursor_path', path)
+                    break
+            else:
+                # Ask user if none exist
+                user_path = input("❌ Could not find Cursor automatically.\n👉 Enter the path where Cursor's files are located: ").strip()
+                if not os.path.exists(user_path):
+                    raise FileNotFoundError(f"Invalid path: {user_path}")
+                config.set('WindowsPaths', 'cursor_path', user_path)
         elif system == "Linux":
             # For Linux, try to find the first existing path
             for path in default_paths["Linux"]:
